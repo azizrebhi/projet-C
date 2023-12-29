@@ -1,0 +1,401 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+struct Client {
+    int accountNumber;
+    char name[50];
+    float balance;
+    struct Client* next;
+};
+struct Transaction {
+    int accountNumber;
+    float amount;
+    char type[10];          // "Credit" or "Debit"
+    char timestamp[20];     // Date and time of the transaction
+    char description[100];  // Description of the transaction
+    struct Transaction* next;
+};
+struct Client* createClient(int accountNumber, const char* name, float balance) {
+    struct Client* newClient = (struct Client*)malloc(sizeof(struct Client));
+    if (newClient != NULL) {
+        newClient->accountNumber = accountNumber;
+        strncpy(newClient->name, name, sizeof(newClient->name) - 1);
+        newClient->balance = balance;
+        newClient->next = NULL;
+    }
+    return newClient;
+}
+void addClient(struct Client** head, struct Client* newClient) {
+    if (*head == NULL) {
+        *head = newClient;
+    } else {
+        struct Client* current = *head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = newClient;
+    }
+}
+
+void saveClientsToFile(struct Client* head) {
+    FILE* file = fopen("clients.dat", "wb");
+    if (file != NULL) {
+        struct Client* current = head;
+        while (current != NULL) {
+            fwrite(current, sizeof(struct Client), 1, file);
+            current = current->next;
+        }
+        fclose(file);
+    } else {
+        printf("Error opening file for writing.\n");
+    }
+}
+struct Client* loadClientsFromFile() {
+    FILE* file = fopen("clients.dat", "rb");
+    struct Client* head = NULL;
+
+    if (file != NULL) {
+        struct Client buffer;
+        while (fread(&buffer, sizeof(struct Client), 1, file) == 1) {
+            struct Client* newClient = createClient(buffer.accountNumber, buffer.name, buffer.balance);
+            addClient(&head, newClient);
+        }
+        fclose(file);
+    }
+
+    return head;
+}
+
+void displayClientDetails(struct Client* client) {
+    if (client != NULL) {
+        printf("Account Number: %d\n", client->accountNumber);
+        printf("Name: %s\n", client->name);
+        printf("Balance: %.2f\n", client->balance);
+    }
+}
+
+void updateClient(struct Client* head, int accountNumber) {
+    struct Client* current = head;
+
+    while (current != NULL) {
+        if (current->accountNumber == accountNumber) {
+            printf("Enter new name: ");
+            scanf("%s", current->name);
+
+            printf("Enter new balance: ");
+            scanf("%f", &current->balance);
+
+            printf("Client information updated successfully.\n");
+            return;
+        }
+        current = current->next;
+    }
+
+    printf("Client with account number %d not found.\n", accountNumber);
+}
+
+void deleteClient(struct Client** head, int accountNumber) {
+    struct Client* current = *head;
+    struct Client* prev = NULL;
+
+    // Find the client to delete
+    while (current != NULL && current->accountNumber != accountNumber) {
+        prev = current;
+        current = current->next;
+    }
+
+    // If client found, delete it
+    if (current != NULL) {
+        if (prev == NULL) {
+            // Deleting the first node
+            *head = current->next;
+        } else {
+            prev->next = current->next;
+        }
+
+        printf("Client with account number %d deleted.\n", accountNumber);
+        free(current);
+    } else {
+        printf("Client with account number %d not found.\n", accountNumber);
+    }
+}
+
+void addTransaction(struct Transaction** head, struct Transaction* newTransaction) {
+    if (*head == NULL) {
+        *head = newTransaction;
+    } else {
+        struct Transaction* current = *head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = newTransaction;
+    }
+}
+
+void saveTransactionsToFile(struct Transaction* head) {
+    FILE* file = fopen("transactions.dat", "wb");
+    if (file != NULL) {
+        struct Transaction* current = head;
+        while (current != NULL) {
+            fwrite(current, sizeof(struct Transaction), 1, file);
+            current = current->next;
+        }
+        fclose(file);
+    } else {
+        printf("Error opening file for writing.\n");
+    }
+}
+
+struct Transaction* loadTransactionsFromFile() {
+    FILE* file = fopen("transactions.dat", "rb");
+    struct Transaction* head = NULL;
+
+    if (file != NULL) {
+        struct Transaction buffer;
+        while (fread(&buffer, sizeof(struct Transaction), 1, file) == 1) {
+            struct Transaction* newTransaction = (struct Transaction*)malloc(sizeof(struct Transaction));
+            if (newTransaction != NULL) {
+                memcpy(newTransaction, &buffer, sizeof(struct Transaction));
+                newTransaction->next = NULL;
+                addTransaction(&head, newTransaction);
+            }
+        }
+        fclose(file);
+    }
+
+    return head;
+}
+
+void performDeposit(struct Client* client, float amount, struct Transaction** transactions) {
+    // Update client balance
+    client->balance += amount;
+
+    // Add transaction
+    struct Transaction* newTransaction = (struct Transaction*)malloc(sizeof(struct Transaction));
+    if (newTransaction != NULL) {
+        newTransaction->accountNumber = client->accountNumber;
+        newTransaction->amount = amount;
+        strcpy(newTransaction->type, "Credit");
+
+        time_t currentTime;
+        time(&currentTime);
+        strftime(newTransaction->timestamp, sizeof(newTransaction->timestamp), "%Y-%m-%d %H:%M:%S", localtime(&currentTime));
+
+        strcpy(newTransaction->description, "Deposit");
+
+        newTransaction->next = NULL;
+        addTransaction(transactions, newTransaction);
+    }
+}
+
+void performWithdrawal(struct Client* client, float amount, struct Transaction** transactions) {
+    // Check if the client has sufficient balance
+    if (amount <= client->balance) {
+        // Update client balance
+        client->balance -= amount;
+
+        // Add transaction
+        struct Transaction* newTransaction = (struct Transaction*)malloc(sizeof(struct Transaction));
+        if (newTransaction != NULL) {
+            newTransaction->accountNumber = client->accountNumber;
+            newTransaction->amount = amount;
+            strcpy(newTransaction->type, "Debit");
+
+            time_t currentTime;
+            time(&currentTime);
+            strftime(newTransaction->timestamp, sizeof(newTransaction->timestamp), "%Y-%m-%d %H:%M:%S", localtime(&currentTime));
+
+            strcpy(newTransaction->description, "Withdrawal");
+
+            newTransaction->next = NULL;
+            addTransaction(transactions, newTransaction);
+        }
+    } else {
+        printf("Insufficient balance for withdrawal.\n");
+    }
+}
+
+void displayAllClients(struct Client* head) {
+    struct Client* current = head;
+
+    if (current == NULL) {
+        printf("No clients in the bank.\n");
+        return;
+    }
+
+    while (current != NULL) {
+        printf("\nAccount Number: %d\n", current->accountNumber);
+        printf("Name: %s\n", current->name);
+        printf("Balance: %.2f\n", current->balance);
+        printf("------------------------\n");
+        current = current->next;
+    }
+}
+
+void displayTransactionHistory(struct Transaction* transactions, int accountNumber) {
+    struct Transaction* current = transactions;
+    int found = 0;
+
+    printf("\nTransaction History for Account Number %d:\n", accountNumber);
+
+    while (current != NULL) {
+        if (current->accountNumber == accountNumber) {
+            printf("\nTransaction Type: %s\n", current->type);
+            printf("Amount: %.2f\n", current->amount);
+            printf("Timestamp: %s\n", current->timestamp);
+            printf("Description: %s\n", current->description);
+            printf("------------------------\n");
+            found = 1;
+        }
+        current = current->next;
+    }
+
+    if (!found) {
+        printf("No transaction history found for Account Number %d.\n", accountNumber);
+    }
+}
+
+int main() {
+    struct Client* clients = loadClientsFromFile();
+    struct Transaction* transactions = loadTransactionsFromFile();
+    int choice;
+
+    do {
+        // Display menu and get user choice
+        printf("\n1. Add new client\n");
+        printf("2. Display client details\n");
+        printf("3. Update client information\n");
+        printf("4. Perform deposit\n");
+        printf("5. Perform withdrawal\n");
+        printf("6. Display all clients\n");
+        printf("7. Display transaction history\n");
+        printf("8. Save and exit\n");
+        printf("9. Delete an existing client\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1: {
+                int accountNumber;
+                char name[50];
+                float balance;
+
+                printf("Enter account number: ");
+                scanf("%d", &accountNumber);
+
+                printf("Enter name: ");
+                scanf("%s", name);
+
+                printf("Enter balance: ");
+                scanf("%f", &balance);
+
+                struct Client* newClient = createClient(accountNumber, name, balance);
+                addClient(&clients, newClient);
+                break;
+            }
+            case 2: {
+                int accountNumber;
+                printf("Enter account number: ");
+                scanf("%d", &accountNumber);
+
+                struct Client* current = clients;
+                while (current != NULL) {
+                    if (current->accountNumber == accountNumber) {
+                        displayClientDetails(current);
+                        break;
+                    }
+                    current = current->next;
+                }
+                break;
+            }
+            case 3: {
+                int accountNumber;
+                printf("Enter account number to update: ");
+                scanf("%d", &accountNumber);
+                updateClient(clients, accountNumber);
+                break;
+            }
+            case 4: {
+                int accountNumber;
+                float amount;
+                printf("Enter account number: ");
+                scanf("%d", &accountNumber);
+                printf("Enter amount to deposit: ");
+                scanf("%f", &amount);
+
+                struct Client* current = clients;
+                while (current != NULL) {
+                    if (current->accountNumber == accountNumber) {
+                        performDeposit(current, amount, &transactions);
+                        printf("Deposit successful. New balance: %.2f\n", current->balance);
+                        break;
+                    }
+                    current = current->next;
+                }
+                break;
+            }
+            case 5: {
+                int accountNumber;
+                float amount;
+                printf("Enter account number: ");
+                scanf("%d", &accountNumber);
+                printf("Enter amount to withdraw: ");
+                scanf("%f", &amount);
+
+                struct Client* current = clients;
+                while (current != NULL) {
+                    if (current->accountNumber == accountNumber) {
+                        performWithdrawal(current, amount, &transactions);
+                        printf("Withdrawal successful. New balance: %.2f\n", current->balance);
+                        break;
+                    }
+                    current = current->next;
+                }
+                break;
+            }
+            case 6:
+                displayAllClients(clients);
+                break;
+            case 7: {
+                int accountNumber;
+                printf("Enter account number: ");
+                scanf("%d", &accountNumber);
+                displayTransactionHistory(transactions, accountNumber);
+                break;
+            }
+            case 9: {
+                int accountNumber;
+                printf("Enter account number to delete: ");
+                scanf("%d", &accountNumber);
+                deleteClient(&clients, accountNumber);
+                break;
+            }
+            case 8:
+                saveClientsToFile(clients);
+                saveTransactionsToFile(transactions);
+                printf("Data saved. Exiting.\n");
+                break;
+            default:
+                printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 8);
+
+    // Free allocated memory
+    struct Client* currentClient = clients;
+    while (currentClient != NULL) {
+        struct Client* temp = currentClient;
+        currentClient = currentClient->next;
+        free(temp);
+    }
+
+    struct Transaction* currentTransaction = transactions;
+    while (currentTransaction != NULL) {
+        struct Transaction* temp = currentTransaction;
+        currentTransaction = currentTransaction->next;
+        free(temp);
+    }
+
+    return 0;
+}
