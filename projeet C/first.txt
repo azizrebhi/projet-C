@@ -55,7 +55,6 @@ void saveClientsToFile(struct Client* head) {
 struct Client* loadClientsFromFile() {
     FILE* file = fopen("clients.dat", "rb");
     struct Client* head = NULL;
-
     if (file != NULL) {
         struct Client buffer;
         while (fread(&buffer, sizeof(struct Client), 1, file) == 1) {
@@ -64,7 +63,6 @@ struct Client* loadClientsFromFile() {
         }
         fclose(file);
     }
-
     return head;
 }
 
@@ -75,38 +73,28 @@ void displayClientDetails(struct Client* client) {
         printf("Balance: %.2f\n", client->balance);
     }
 }
-
 void updateClient(struct Client* head, int accountNumber) {
     struct Client* current = head;
-
     while (current != NULL) {
         if (current->accountNumber == accountNumber) {
             printf("Enter new name: ");
             scanf("%s", current->name);
-
             printf("Enter new balance: ");
             scanf("%f", &current->balance);
-
             printf("Client information updated successfully.\n");
             return;
         }
         current = current->next;
     }
-
     printf("Client with account number %d not found.\n", accountNumber);
 }
-
 void deleteClient(struct Client** head, int accountNumber) {
     struct Client* current = *head;
     struct Client* prev = NULL;
-
-    // Find the client to delete
     while (current != NULL && current->accountNumber != accountNumber) {
         prev = current;
         current = current->next;
     }
-
-    // If client found, delete it
     if (current != NULL) {
         if (prev == NULL) {
             // Deleting the first node
@@ -114,14 +102,12 @@ void deleteClient(struct Client** head, int accountNumber) {
         } else {
             prev->next = current->next;
         }
-
         printf("Client with account number %d deleted.\n", accountNumber);
         free(current);
     } else {
         printf("Client with account number %d not found.\n", accountNumber);
     }
 }
-
 void addTransaction(struct Transaction** head, struct Transaction* newTransaction) {
     if (*head == NULL) {
         *head = newTransaction;
@@ -133,7 +119,6 @@ void addTransaction(struct Transaction** head, struct Transaction* newTransactio
         current->next = newTransaction;
     }
 }
-
 void saveTransactionsToFile(struct Transaction* head) {
     FILE* file = fopen("transactions.dat", "wb");
     if (file != NULL) {
@@ -147,11 +132,9 @@ void saveTransactionsToFile(struct Transaction* head) {
         printf("Error opening file for writing.\n");
     }
 }
-
 struct Transaction* loadTransactionsFromFile() {
     FILE* file = fopen("transactions.dat", "rb");
     struct Transaction* head = NULL;
-
     if (file != NULL) {
         struct Transaction buffer;
         while (fread(&buffer, sizeof(struct Transaction), 1, file) == 1) {
@@ -167,48 +150,33 @@ struct Transaction* loadTransactionsFromFile() {
 
     return head;
 }
-
 void performDeposit(struct Client* client, float amount, struct Transaction** transactions) {
-    // Update client balance
     client->balance += amount;
-
-    // Add transaction
     struct Transaction* newTransaction = (struct Transaction*)malloc(sizeof(struct Transaction));
     if (newTransaction != NULL) {
         newTransaction->accountNumber = client->accountNumber;
         newTransaction->amount = amount;
         strcpy(newTransaction->type, "Credit");
-
         time_t currentTime;
         time(&currentTime);
         strftime(newTransaction->timestamp, sizeof(newTransaction->timestamp), "%Y-%m-%d %H:%M:%S", localtime(&currentTime));
-
         strcpy(newTransaction->description, "Deposit");
-
         newTransaction->next = NULL;
         addTransaction(transactions, newTransaction);
     }
 }
-
 void performWithdrawal(struct Client* client, float amount, struct Transaction** transactions) {
-    // Check if the client has sufficient balance
     if (amount <= client->balance) {
-        // Update client balance
         client->balance -= amount;
-
-        // Add transaction
         struct Transaction* newTransaction = (struct Transaction*)malloc(sizeof(struct Transaction));
         if (newTransaction != NULL) {
             newTransaction->accountNumber = client->accountNumber;
             newTransaction->amount = amount;
             strcpy(newTransaction->type, "Debit");
-
             time_t currentTime;
             time(&currentTime);
             strftime(newTransaction->timestamp, sizeof(newTransaction->timestamp), "%Y-%m-%d %H:%M:%S", localtime(&currentTime));
-
             strcpy(newTransaction->description, "Withdrawal");
-
             newTransaction->next = NULL;
             addTransaction(transactions, newTransaction);
         }
@@ -219,12 +187,10 @@ void performWithdrawal(struct Client* client, float amount, struct Transaction**
 
 void displayAllClients(struct Client* head) {
     struct Client* current = head;
-
     if (current == NULL) {
         printf("No clients in the bank.\n");
         return;
     }
-
     while (current != NULL) {
         printf("\nAccount Number: %d\n", current->accountNumber);
         printf("Name: %s\n", current->name);
@@ -233,13 +199,10 @@ void displayAllClients(struct Client* head) {
         current = current->next;
     }
 }
-
 void displayTransactionHistory(struct Transaction* transactions, int accountNumber) {
     struct Transaction* current = transactions;
     int found = 0;
-
     printf("\nTransaction History for Account Number %d:\n", accountNumber);
-
     while (current != NULL) {
         if (current->accountNumber == accountNumber) {
             printf("\nTransaction Type: %s\n", current->type);
@@ -251,12 +214,10 @@ void displayTransactionHistory(struct Transaction* transactions, int accountNumb
         }
         current = current->next;
     }
-
     if (!found) {
         printf("No transaction history found for Account Number %d.\n", accountNumber);
     }
 }
-
 int main() {
     struct Client* clients = loadClientsFromFile();
     struct Transaction* transactions = loadTransactionsFromFile();
@@ -381,8 +342,6 @@ int main() {
                 printf("Invalid choice. Please try again.\n");
         }
     } while (choice != 8);
-
-    // Free allocated memory
     struct Client* currentClient = clients;
     while (currentClient != NULL) {
         struct Client* temp = currentClient;
